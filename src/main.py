@@ -41,8 +41,9 @@ def main() -> None:
     cfg = Config.from_env()
     logging.basicConfig(level=cfg.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     log.info(
-        "Starting: evcc=%s loadpoints=%s cheapest=%.0f%% of %.0f h interval=%ds%s",
-        cfg.evcc_url, ", ".join(cfg.loadpoints), 100 * cfg.fraction, cfg.hours, cfg.poll_interval,
+        "Starting: evcc=%s loadpoints=%s window=%.0f h interval=%ds%s",
+        cfg.evcc_url, ", ".join(f"{title} (cheapest {100 * f:.0f}%)" for title, f in cfg.loadpoints),
+        cfg.hours, cfg.poll_interval,
         " (dry run)" if cfg.dry_run else "",
     )
     asyncio.run(run(cfg))
