@@ -1,7 +1,7 @@
 services:
   mastertherm-price-modulator:
     # pin to a release tag or the git SHA tag published by CI
-    image: ghcr.io/nickels/mastertherm-price-modulator:0.1.0
+    image: ghcr.io/nickels/mastertherm-price-modulator:0.2.0
     container_name: mastertherm-price-modulator
     restart: unless-stopped
     tty: true

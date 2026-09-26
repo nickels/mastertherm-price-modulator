@@ -69,7 +69,7 @@ In Container Manager, go to **Project** > **Create**:
 ```yaml
 services:
   mastertherm-price-modulator:
-    image: ghcr.io/nickels/mastertherm-price-modulator:0.1.0
+    image: ghcr.io/nickels/mastertherm-price-modulator:0.2.0
     container_name: mastertherm-price-modulator
     restart: unless-stopped
     tty: true
