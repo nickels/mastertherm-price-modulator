@@ -9,6 +9,9 @@ log = logging.getLogger("mastertherm-price-modulator")
 # evcc receives the limit with 4 decimals, so smaller differences are not a change
 PRECISION = 0.0001
 
+# the UI "Solar" mode; evcc renamed pv to smart in evcc-io/evcc#32490
+SMART_MODES = ("smart", "pv")
+
 
 async def sync_once(evcc, cfg: Config, now: datetime) -> Decision | None:
     """Compute the limit for the coming hours and write it to every configured loadpoint."""
@@ -24,7 +27,7 @@ async def sync_once(evcc, cfg: Config, now: datetime) -> Decision | None:
     )
 
     for lp in await evcc.find_loadpoints(cfg.loadpoints):
-        if lp.mode != "pv":
+        if lp.mode not in SMART_MODES:
             log.warning("loadpoint %d '%s' is in mode '%s': the limit only applies in Solar mode", lp.id, lp.title, lp.mode)
         if lp.smart_cost_limit is not None and abs(lp.smart_cost_limit - decision.limit) < PRECISION:
             continue
