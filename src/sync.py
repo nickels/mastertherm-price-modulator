@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 from datetime import datetime
 
 from config import Config
@@ -28,7 +29,18 @@ async def sync_once(evcc, cfg: Config, now: datetime) -> dict[str, Decision] | N
             title, 100 * fraction, decision.limit, decision.heat_hours, decision.known_hours,
         )
 
-    for lp in await evcc.find_loadpoints([title for title, _ in cfg.loadpoints]):
+    managed = [title for title, _ in cfg.loadpoints]
+    floor_of = dict(cfg.floors)
+    sources = [t for t in dict.fromkeys(floor_of.values()) if t not in managed]
+    found = {lp.title: lp for lp in await evcc.find_loadpoints(managed + sources)}
+
+    for title, source in floor_of.items():
+        floor = found[source].smart_cost_limit
+        if floor is not None and floor > decisions[title].limit:
+            log.info("'%s' limit raised to the floor %.4f of '%s'", title, floor, source)
+            decisions[title] = replace(decisions[title], limit=floor)
+
+    for lp in (found[title] for title in managed):
         limit = decisions[lp.title].limit
         if lp.mode not in SMART_MODES:
             log.warning("loadpoint %d '%s' is in mode '%s': the limit only applies in Solar mode", lp.id, lp.title, lp.mode)

@@ -15,14 +15,18 @@ class Config:
     poll_interval: int
     dry_run: bool
     log_level: str
+    # (title, floor loadpoint title): the limit never drops below that loadpoint's smart cost limit
+    floors: tuple[tuple[str, str], ...] = ()
 
     @classmethod
     def from_env(cls) -> "Config":
         fraction = _fraction(os.environ.get("FRACTION", "0.4"), "FRACTION")
+        loadpoints, floors = _parse_loadpoints(os.environ.get("LOADPOINTS", DEFAULT_LOADPOINTS), fraction)
         return cls(
             evcc_url=os.environ["EVCC_URL"],
             api_key=os.environ.get("EVCC_API_KEY") or None,
-            loadpoints=_parse_loadpoints(os.environ.get("LOADPOINTS", DEFAULT_LOADPOINTS), fraction),
+            loadpoints=loadpoints,
+            floors=floors,
             fraction=fraction,
             hours=float(os.environ.get("HOURS", "24")),
             min_hours=float(os.environ.get("MIN_HOURS", "8")),
@@ -32,15 +36,19 @@ class Config:
         )
 
 
-def _parse_loadpoints(raw: str, default: float) -> tuple[tuple[str, float], ...]:
-    """Parse "Title[:fraction],..."; a title without a fraction gets the default."""
-    result = []
+def _parse_loadpoints(raw: str, default: float) -> tuple[tuple[tuple[str, float], ...], tuple[tuple[str, str], ...]]:
+    """Parse "Title[:fraction[:floor loadpoint title]],..."; a title without a fraction gets the default."""
+    loadpoints, floors = [], []
     for entry in raw.split(","):
-        title, _, value = entry.partition(":")
+        title, _, rest = entry.partition(":")
+        value, _, floor = rest.partition(":")
         title = title.strip()
-        if title:
-            result.append((title, _fraction(value, f"LOADPOINTS '{title}'") if value.strip() else default))
-    return tuple(result)
+        if not title:
+            continue
+        loadpoints.append((title, _fraction(value, f"LOADPOINTS '{title}'") if value.strip() else default))
+        if floor.strip():
+            floors.append((title, floor.strip()))
+    return tuple(loadpoints), tuple(floors)
 
 
 def _fraction(value: str, name: str) -> float:
