@@ -38,6 +38,7 @@ def test_loadpoint_fraction_invalid(monkeypatch, value):
 
 
 def test_loadpoint_floor(monkeypatch):
+    # third field: the limit never drops below this price (SHW boost threshold)
     monkeypatch.setenv("LOADPOINTS", "MasterTherm:0.4,MasterTherm SHW:0.2:0.15")
     assert Config.from_env().loadpoints[1] == LoadpointSpec("MasterTherm SHW", 0.2, floor=0.15)
 
