@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from config import Config, LoadpointSpec
+from config import Config
 from controller import Rate
 from evcc import Loadpoint
 from sync import sync_once
@@ -16,7 +16,7 @@ HEATING, SHW = 10.0, 5.0
 def cfg(**overrides):
     base = dict(
         evcc_url="http://evcc", api_key=None,
-        loadpoints=(LoadpointSpec("MasterTherm", 0.4), LoadpointSpec("MasterTherm SHW", 0.2)),
+        loadpoints=(("MasterTherm", 0.4), ("MasterTherm SHW", 0.2)),
         fraction=0.4, hours=24.0, min_hours=8.0, poll_interval=900, dry_run=False, log_level="INFO",
     )
     return Config(**{**base, **overrides})
@@ -55,7 +55,7 @@ async def test_sets_own_limit_per_loadpoint():
 
 async def test_same_fraction_gives_same_limit():
     evcc = FakeEvcc()
-    await sync_once(evcc, cfg(loadpoints=(LoadpointSpec("MasterTherm", 0.4), LoadpointSpec("MasterTherm SHW", 0.4))), NOW)
+    await sync_once(evcc, cfg(loadpoints=(("MasterTherm", 0.4), ("MasterTherm SHW", 0.4))), NOW)
     assert evcc.writes == [(3, HEATING), (2, HEATING)]
 
 
@@ -97,19 +97,3 @@ async def test_limit_compare_uses_api_precision(delta):
     evcc = FakeEvcc(limits=(HEATING + delta, SHW + delta))
     await sync_once(evcc, cfg(), NOW)
     assert evcc.writes == []
-
-
-async def test_floor_raises_a_low_limit():
-    # SHW must be on whenever the boost loadpoint is on (price <= floor)
-    evcc = FakeEvcc()
-    lps = (LoadpointSpec("MasterTherm", 0.4), LoadpointSpec("MasterTherm SHW", 0.2, floor=7.0))
-    decisions = await sync_once(evcc, cfg(loadpoints=lps), NOW)
-    assert decisions["MasterTherm SHW"].limit == 7.0
-    assert evcc.writes == [(3, HEATING), (2, 7.0)]
-
-
-async def test_floor_below_limit_changes_nothing():
-    evcc = FakeEvcc()
-    lps = (LoadpointSpec("MasterTherm", 0.4), LoadpointSpec("MasterTherm SHW", 0.2, floor=3.0))
-    await sync_once(evcc, cfg(loadpoints=lps), NOW)
-    assert evcc.writes == [(3, HEATING), (2, SHW)]
