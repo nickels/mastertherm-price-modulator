@@ -72,6 +72,14 @@ async def test_warns_when_loadpoint_not_in_solar_mode(caplog):
     assert "MasterTherm" in caplog.text and "Solar" in caplog.text
 
 
+@pytest.mark.parametrize("mode", ["smart", "pv"])
+async def test_no_warning_in_smart_mode(caplog, mode):
+    # evcc renamed pv to smart (evcc-io/evcc#32490); both mean the UI "Solar" mode
+    evcc = FakeEvcc(modes=(mode, mode))
+    await sync_once(evcc, cfg(), NOW)
+    assert "Solar" not in caplog.text
+
+
 @pytest.mark.parametrize("current", [9.99995, 10.00004])
 async def test_limit_compare_uses_api_precision(current):
     evcc = FakeEvcc(limits=(current, 10.0))
