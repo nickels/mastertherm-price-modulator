@@ -35,3 +35,14 @@ def test_loadpoint_fraction_invalid(monkeypatch, value):
     monkeypatch.setenv("LOADPOINTS", f"MasterTherm,MasterTherm SHW:{value}")
     with pytest.raises(ValueError, match="MasterTherm SHW"):
         Config.from_env()
+
+
+def test_floor_from_other_loadpoint(monkeypatch):
+    monkeypatch.setenv("LOADPOINTS", "MasterTherm:0.4,MasterTherm SHW:0.2:MasterTherm SHW Booster")
+    cfg = Config.from_env()
+    assert cfg.loadpoints == (("MasterTherm", 0.4), ("MasterTherm SHW", 0.2))
+    assert cfg.floors == (("MasterTherm SHW", "MasterTherm SHW Booster"),)
+
+
+def test_no_floors_by_default():
+    assert Config.from_env().floors == ()

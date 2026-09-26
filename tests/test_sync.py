@@ -23,7 +23,7 @@ def cfg(**overrides):
 
 
 class FakeEvcc:
-    def __init__(self, hours_of_prices=24, limits=(None, 0.2), modes=("smart", "smart")):
+    def __init__(self, hours_of_prices=24, limits=(None, 0.2), modes=("smart", "smart"), booster_limit=None):
         self.rates = [
             Rate(NOW + timedelta(hours=i), NOW + timedelta(hours=i + 1), float(24 - i))
             for i in range(hours_of_prices)
@@ -31,6 +31,7 @@ class FakeEvcc:
         self.loadpoints = [
             Loadpoint(id=3, title="MasterTherm", mode=modes[0], smart_cost_limit=limits[0]),
             Loadpoint(id=2, title="MasterTherm SHW", mode=modes[1], smart_cost_limit=limits[1]),
+            Loadpoint(id=4, title="MasterTherm SHW Booster", mode="smart", smart_cost_limit=booster_limit),
         ]
         self.writes = []
 
@@ -38,8 +39,7 @@ class FakeEvcc:
         return self.rates
 
     async def find_loadpoints(self, titles):
-        assert tuple(titles) == ("MasterTherm", "MasterTherm SHW")
-        return self.loadpoints
+        return [lp for title in titles for lp in self.loadpoints if lp.title == title]
 
     async def set_smart_cost_limit(self, loadpoint_id, limit):
         self.writes.append((loadpoint_id, limit))
@@ -97,3 +97,26 @@ async def test_limit_compare_uses_api_precision(delta):
     evcc = FakeEvcc(limits=(HEATING + delta, SHW + delta))
     await sync_once(evcc, cfg(), NOW)
     assert evcc.writes == []
+
+
+BOOSTER_FLOOR = (("MasterTherm SHW", "MasterTherm SHW Booster"),)
+
+
+async def test_floor_from_booster_raises_shw_limit():
+    # the Booster's smart cost limit (set in the evcc UI) is the floor for SHW
+    evcc = FakeEvcc(booster_limit=7.0)
+    decisions = await sync_once(evcc, cfg(floors=BOOSTER_FLOOR), NOW)
+    assert decisions["MasterTherm SHW"].limit == 7.0
+    assert evcc.writes == [(3, HEATING), (2, 7.0)]
+
+
+async def test_floor_below_percentile_keeps_percentile():
+    evcc = FakeEvcc(booster_limit=3.0)
+    await sync_once(evcc, cfg(floors=BOOSTER_FLOOR), NOW)
+    assert evcc.writes == [(3, HEATING), (2, SHW)]
+
+
+async def test_floor_loadpoint_without_limit_is_ignored():
+    evcc = FakeEvcc(booster_limit=None)
+    await sync_once(evcc, cfg(floors=BOOSTER_FLOOR), NOW)
+    assert evcc.writes == [(3, HEATING), (2, SHW)]
