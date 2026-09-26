@@ -20,6 +20,10 @@ evcc applies the limit as `price <= limit` in **Solar** mode (API mode `smart`, 
 
 The heat pump side is configured in the evcc switch socket of each loadpoint. It is not part of this daemon.
 
+### SHW boost
+
+A separate evcc loadpoint "MasterTherm SHW Boost" controls only the SHW setpoint (A_129). It has a fixed smart cost limit (for example 0.15 €/kWh) set in evcc, and this daemon does not manage it. When the price is at or below that limit, the boost raises the setpoint, and its evcc temperature limit sets the maximum tank temperature. "MasterTherm SHW" keeps control of SHW on/off (D_29), so the boost heats only in hours where both are on.
+
 ## Safety
 
 - The daemon does not change the limit when fewer than `MIN_HOURS` of prices are known. This happens for example before the day-ahead prices appear.
