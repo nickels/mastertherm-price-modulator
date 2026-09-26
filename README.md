@@ -20,6 +20,10 @@ evcc applies the limit as `price <= limit` in **Solar** mode (API mode `smart`, 
 
 The heat pump side is configured in the evcc switch socket of each loadpoint. It is not part of this daemon.
 
+### SHW boost
+
+A separate evcc loadpoint "MasterTherm SHW Boost" raises the SHW setpoint (A_129) to 60 °C when the price is at or below a fixed smart cost limit of 0.15 €/kWh. This daemon does not manage that loadpoint. The SHW floor of 0.15 keeps the SHW loadpoint on whenever the boost is on, also on days when the cheapest 20 % ends below 0.15.
+
 ## Safety
 
 - The daemon does not change the limit when fewer than `MIN_HOURS` of prices are known. This happens for example before the day-ahead prices appear.
@@ -34,7 +38,7 @@ All via environment variables:
 |---|---|---|---|
 | `EVCC_URL` | yes | | evcc base URL |
 | `EVCC_API_KEY` | no | | evcc API key, sent as Bearer token |
-| `LOADPOINTS` | no | `MasterTherm:0.4,MasterTherm SHW:0.2` | Comma-separated evcc loadpoint titles, each with an optional `:fraction` |
+| `LOADPOINTS` | no | `MasterTherm:0.4,MasterTherm SHW:0.2:0.15` | Comma-separated `title[:fraction[:floor]]`. The limit never drops below `floor` (€/kWh). |
 | `FRACTION` | no | `0.4` | Fraction for a title without its own `:fraction`, in (0, 1] |
 | `HOURS` | no | `24` | Look-ahead window in hours |
 | `MIN_HOURS` | no | `8` | Minimum known price horizon in hours |
@@ -76,7 +80,7 @@ services:
     network_mode: host
     environment:
       EVCC_URL: "http://192.168.1.20:7070"
-      LOADPOINTS: "MasterTherm:0.4,MasterTherm SHW:0.2"
+      LOADPOINTS: "MasterTherm:0.4,MasterTherm SHW:0.2:0.15"
       HOURS: "24"
       POLL_INTERVAL: "900"
       DRY_RUN: "false"
