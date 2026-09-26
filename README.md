@@ -1,6 +1,6 @@
 # MasterTherm Price Modulator
 
-A small Python daemon that makes the MasterTherm heat pump heat only in the cheapest hours. It reads the grid price forecast from [evcc](https://evcc.io), computes the price that covers the cheapest 40 % of the next 24 h, and sets that value as the **smart cost limit** of the MasterTherm loadpoints in evcc.
+A small Python daemon that makes the MasterTherm heat pump heat only in the cheapest hours. It reads the grid price forecast from [evcc](https://evcc.io), computes per loadpoint the price that covers the cheapest share of the next 24 h (40 % for space heating, 20 % for hot water), and sets that value as the **smart cost limit** of that loadpoint in evcc.
 
 evcc stays the only system that writes to the heat pump. This daemon only sets a price limit.
 
@@ -8,7 +8,7 @@ evcc stays the only system that writes to the heat pump. This daemon only sets a
 
 1. Every `POLL_INTERVAL` seconds, the daemon reads `GET /api/tariff/grid`.
 2. It keeps the price slots in the next `HOURS` hours and weights them by duration, so 15-minute and hourly tariffs give the same result.
-3. It sorts the slots by price and takes the lowest price that covers `FRACTION` of the time. That price is the limit.
+3. It sorts the slots by price and takes the lowest price that covers the loadpoint's fraction of the time. That price is the loadpoint's limit.
 4. It finds the loadpoints by title in `GET /api/state` and writes the limit with `POST /api/loadpoints/<id>/smartcostlimit/<value>`. It writes only when the value changed.
 
 evcc applies the limit as `price <= limit` in **Solar** mode (API mode `smart`, formerly `pv`). In that mode the loadpoint switches on in cheap slots and on solar surplus, and switches off otherwise. The daemon logs a warning when a loadpoint is in another mode.
@@ -34,8 +34,8 @@ All via environment variables:
 |---|---|---|---|
 | `EVCC_URL` | yes | | evcc base URL |
 | `EVCC_API_KEY` | no | | evcc API key, sent as Bearer token |
-| `LOADPOINTS` | no | `MasterTherm,MasterTherm SHW` | Comma-separated evcc loadpoint titles |
-| `FRACTION` | no | `0.4` | Share of the cheapest time to heat in, in (0, 1] |
+| `LOADPOINTS` | no | `MasterTherm:0.4,MasterTherm SHW:0.2` | Comma-separated evcc loadpoint titles, each with an optional `:fraction` |
+| `FRACTION` | no | `0.4` | Fraction for a title without its own `:fraction`, in (0, 1] |
 | `HOURS` | no | `24` | Look-ahead window in hours |
 | `MIN_HOURS` | no | `8` | Minimum known price horizon in hours |
 | `POLL_INTERVAL` | no | `900` | Seconds between runs |
@@ -76,8 +76,7 @@ services:
     network_mode: host
     environment:
       EVCC_URL: "http://192.168.1.20:7070"
-      LOADPOINTS: "MasterTherm,MasterTherm SHW"
-      FRACTION: "0.4"
+      LOADPOINTS: "MasterTherm:0.4,MasterTherm SHW:0.2"
       HOURS: "24"
       POLL_INTERVAL: "900"
       DRY_RUN: "false"
