@@ -56,6 +56,38 @@ uv venv .venv && uv pip install -r requirements.txt --python .venv/bin/python
 EVCC_URL=http://evcc:7070 DRY_RUN=true .venv/bin/python src/main.py
 ```
 
+## Synology deployment
+
+Container Manager on DSM 7 does not support `env_file:`, so put the environment variables inline in the compose YAML.
+
+In Container Manager, go to **Project** > **Create**:
+
+- **Project name**: `mastertherm-price-modulator`
+- **Path**: `/docker/mastertherm-price-modulator`
+- **Source**: Create docker-compose.yml, and paste:
+
+```yaml
+services:
+  mastertherm-price-modulator:
+    image: ghcr.io/nickels/mastertherm-price-modulator:0.1.0
+    container_name: mastertherm-price-modulator
+    restart: unless-stopped
+    tty: true
+    network_mode: host
+    environment:
+      EVCC_URL: "http://192.168.1.20:7070"
+      LOADPOINTS: "MasterTherm,MasterTherm SHW"
+      FRACTION: "0.4"
+      HOURS: "24"
+      POLL_INTERVAL: "900"
+      DRY_RUN: "false"
+      LOG_LEVEL: "INFO"
+```
+
+Click **Next**, then **Done**. Container Manager pulls the image from GHCR and starts the container.
+
+To update: change the image tag, then go to **Project** > select the project > **Action** > **Build**.
+
 ## Development
 
 ```sh
