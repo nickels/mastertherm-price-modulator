@@ -1,14 +1,21 @@
 import os
 from dataclasses import dataclass
 
-DEFAULT_LOADPOINTS = "MasterTherm:0.4,MasterTherm SHW:0.2"
+DEFAULT_LOADPOINTS = "MasterTherm:0.4,MasterTherm SHW:0.2:0.15"
+
+
+@dataclass(frozen=True)
+class LoadpointSpec:
+    title: str
+    fraction: float
+    floor: float | None = None  # the limit never goes below this price
 
 
 @dataclass(frozen=True)
 class Config:
     evcc_url: str
     api_key: str | None
-    loadpoints: tuple[tuple[str, float], ...]  # (title, fraction)
+    loadpoints: tuple[LoadpointSpec, ...]
     fraction: float
     hours: float
     min_hours: float
@@ -32,22 +39,33 @@ class Config:
         )
 
 
-def _parse_loadpoints(raw: str, default: float) -> tuple[tuple[str, float], ...]:
-    """Parse "Title[:fraction],..."; a title without a fraction gets the default."""
+def _parse_loadpoints(raw: str, default: float) -> tuple[LoadpointSpec, ...]:
+    """Parse "Title[:fraction[:floor]],..."; a title without a fraction gets the default."""
     result = []
     for entry in raw.split(","):
-        title, _, value = entry.partition(":")
+        title, _, rest = entry.partition(":")
+        fraction, _, floor = rest.partition(":")
         title = title.strip()
-        if title:
-            result.append((title, _fraction(value, f"LOADPOINTS '{title}'") if value.strip() else default))
+        if not title:
+            continue
+        name = f"LOADPOINTS '{title}'"
+        result.append(LoadpointSpec(
+            title,
+            _fraction(fraction, name) if fraction.strip() else default,
+            _number(floor, name) if floor.strip() else None,
+        ))
     return tuple(result)
 
 
 def _fraction(value: str, name: str) -> float:
-    try:
-        fraction = float(value)
-    except ValueError:
-        raise ValueError(f"{name}: fraction must be a number, got '{value.strip()}'") from None
+    fraction = _number(value, name)
     if not 0 < fraction <= 1:
         raise ValueError(f"{name}: fraction must be in (0, 1], got {fraction}")
     return fraction
+
+
+def _number(value: str, name: str) -> float:
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(f"{name}: expected a number, got '{value.strip()}'") from None

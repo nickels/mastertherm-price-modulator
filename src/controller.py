@@ -42,12 +42,19 @@ def select_limit(slots: list[tuple[float, float]], fraction: float) -> float:
     return max(price for price, _ in slots)
 
 
-def decide(rates: list[Rate], now: datetime, fraction: float, hours: float, min_hours: float) -> Decision | None:
-    """Compute the smart cost limit, or None when too few future prices are known."""
+def decide(
+    rates: list[Rate], now: datetime, fraction: float, hours: float, min_hours: float, floor: float | None = None,
+) -> Decision | None:
+    """Compute the smart cost limit, or None when too few future prices are known.
+
+    With a floor, the limit never drops below that price.
+    """
     slots = upcoming_slots(rates, now, hours)
     known_hours = sum(duration for _, duration in slots) / 3600
     if known_hours < min_hours:
         return None
     limit = select_limit(slots, fraction)
+    if floor is not None:
+        limit = max(limit, floor)
     heat_hours = sum(duration for price, duration in slots if price <= limit) / 3600
     return Decision(limit=limit, known_hours=known_hours, heat_hours=heat_hours)

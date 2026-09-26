@@ -42,7 +42,10 @@ def main() -> None:
     logging.basicConfig(level=cfg.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     log.info(
         "Starting: evcc=%s loadpoints=%s window=%.0f h interval=%ds%s",
-        cfg.evcc_url, ", ".join(f"{title} (cheapest {100 * f:.0f}%)" for title, f in cfg.loadpoints),
+        cfg.evcc_url, ", ".join(
+            f"{lp.title} (cheapest {100 * lp.fraction:.0f}%" + (f", floor {lp.floor}" if lp.floor is not None else "") + ")"
+            for lp in cfg.loadpoints
+        ),
         cfg.hours, cfg.poll_interval,
         " (dry run)" if cfg.dry_run else "",
     )

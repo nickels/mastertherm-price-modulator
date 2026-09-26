@@ -17,18 +17,19 @@ async def sync_once(evcc, cfg: Config, now: datetime) -> dict[str, Decision] | N
     """Compute each loadpoint's limit for the coming hours and write it to evcc."""
     rates = await evcc.fetch_rates()
     decisions = {}
-    for title, fraction in cfg.loadpoints:
-        decision = decide(rates, now, fraction, cfg.hours, cfg.min_hours)
+    for spec in cfg.loadpoints:
+        decision = decide(rates, now, spec.fraction, cfg.hours, cfg.min_hours, spec.floor)
         if decision is None:
             log.warning("fewer than %.0f h of prices known, limits unchanged", cfg.min_hours)
             return None
-        decisions[title] = decision
+        decisions[spec.title] = decision
         log.info(
-            "'%s' cheapest %.0f%%: limit %.4f -> heat %.1f of %.1f h",
-            title, 100 * fraction, decision.limit, decision.heat_hours, decision.known_hours,
+            "'%s' cheapest %.0f%%%s: limit %.4f -> heat %.1f of %.1f h",
+            spec.title, 100 * spec.fraction, f" (floor {spec.floor:.4f})" if spec.floor is not None else "",
+            decision.limit, decision.heat_hours, decision.known_hours,
         )
 
-    for lp in await evcc.find_loadpoints([title for title, _ in cfg.loadpoints]):
+    for lp in await evcc.find_loadpoints([spec.title for spec in cfg.loadpoints]):
         limit = decisions[lp.title].limit
         if lp.mode not in SMART_MODES:
             log.warning("loadpoint %d '%s' is in mode '%s': the limit only applies in Solar mode", lp.id, lp.title, lp.mode)
