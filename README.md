@@ -22,7 +22,7 @@ The heat pump side is configured in the evcc switch socket of each loadpoint. It
 
 ### SHW boost
 
-A separate evcc loadpoint "MasterTherm SHW Boost" controls only the SHW setpoint (A_129). It has a fixed smart cost limit (for example 0.15 €/kWh) set in evcc, and this daemon does not manage it. When the price is at or below that limit, the boost raises the setpoint, and its evcc temperature limit sets the maximum tank temperature. "MasterTherm SHW" keeps control of SHW on/off (D_29), so the boost heats only in hours where both are on.
+A separate evcc loadpoint "MasterTherm SHW Boost" controls only the SHW setpoint (A_129). It has a fixed smart cost limit (for example 0.15 €/kWh) set in evcc, and this daemon does not manage it. When the price is at or below that limit, the boost raises the setpoint, and its evcc temperature limit sets the maximum tank temperature. "MasterTherm SHW" keeps control of SHW on/off (D_29). With `MasterTherm SHW:0.2:MasterTherm SHW Booster` the daemon reads the Booster's smart cost limit and never sets SHW below it, so SHW is on whenever the Booster is.
 
 ## Safety
 
@@ -38,7 +38,7 @@ All via environment variables:
 |---|---|---|---|
 | `EVCC_URL` | yes | | evcc base URL |
 | `EVCC_API_KEY` | no | | evcc API key, sent as Bearer token |
-| `LOADPOINTS` | no | `MasterTherm:0.4,MasterTherm SHW:0.2` | Comma-separated evcc loadpoint titles, each with an optional `:fraction` |
+| `LOADPOINTS` | no | `MasterTherm:0.4,MasterTherm SHW:0.2` | Comma-separated `title[:fraction[:floor loadpoint]]`. With a floor loadpoint, the limit never drops below that loadpoint's smart cost limit. |
 | `FRACTION` | no | `0.4` | Fraction for a title without its own `:fraction`, in (0, 1] |
 | `HOURS` | no | `24` | Look-ahead window in hours |
 | `MIN_HOURS` | no | `8` | Minimum known price horizon in hours |
@@ -73,14 +73,14 @@ In Container Manager, go to **Project** > **Create**:
 ```yaml
 services:
   mastertherm-price-modulator:
-    image: ghcr.io/nickels/mastertherm-price-modulator:0.2.0
+    image: ghcr.io/nickels/mastertherm-price-modulator:0.3.0
     container_name: mastertherm-price-modulator
     restart: unless-stopped
     tty: true
     network_mode: host
     environment:
       EVCC_URL: "http://192.168.1.20:7070"
-      LOADPOINTS: "MasterTherm:0.4,MasterTherm SHW:0.2"
+      LOADPOINTS: "MasterTherm:0.4,MasterTherm SHW:0.2:MasterTherm SHW Booster"
       HOURS: "24"
       POLL_INTERVAL: "900"
       DRY_RUN: "false"
